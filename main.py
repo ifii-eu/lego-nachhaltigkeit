@@ -73,6 +73,10 @@ lego_red=cv2.imread("Lego/Lego_Red.png")
 lego_red=cv2.resize(lego_red,(pixel,pixel))
 
 
+lego_gelb=cv2.imread("Lego/Lego_Gelb.png")
+lego_gelb=cv2.resize(lego_gelb,(pixel,pixel))
+
+
 x, y = pixel, pixel
 h, w = lego_orange.shape[:2]
 
