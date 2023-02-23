@@ -2,7 +2,7 @@
 import cv2  
 import numpy as np
 
-cap = cv2.VideoCapture(1,cv2.CAP_DSHOW) #video aufzeichhnung
+cap = cv2.VideoCapture(0,cv2.CAP_DSHOW) #video aufzeichhnung
 
 #trackbar callback fucntion to update HSV value
 def callback(x):
@@ -167,7 +167,15 @@ while(1):
 
 	
 
-		
+
+
+##########################################################
+
+
+
+
+
+
 	# Collect x and y coordinates of keypoints
 	x_coords = []
 	y_coords = []
@@ -186,62 +194,105 @@ while(1):
 			if (x_min <= kp.pt[0] <= x_max) and (y_min <= kp.pt[1] <= y_max):
 				yellow_keypoints.append(kp)
 
-		# Calculate the center of the yellow rectangle
-		x_center = int((x_min + x_max) / 2)
-		y_center = int((y_min + y_max) / 2)
-
-		# Calculate the angle between each yellow brick and the center of the yellow rectangle
-		angle_dict = {}
-		for kp in yellow_keypoints:
-			x, y = kp.pt
-			angle = np.arctan2(y - y_center, x - x_center)
-			angle_dict[kp] = angle
-
-		# Sort the yellow bricks by their angle
-		sorted_bricks = sorted(yellow_keypoints, key=lambda kp: angle_dict[kp])
-
-		# Assign each brick to a quadrant based on its angle
-		left_legos = []
-		right_legos = []
-		top_legos = []
-		bottom_legos = []
-		for kp in sorted_bricks:
-			angle = angle_dict[kp]
-			if np.pi / 4 <= angle < 3 * np.pi / 4:
-				bottom_legos.append((int(kp.pt[0]), int(kp.pt[1])))
-			elif -3 * np.pi / 4 <= angle < -np.pi / 4:
-				top_legos.append((int(kp.pt[0]), int(kp.pt[1])))
-			elif np.pi / 4 > angle >= -np.pi / 4:
-				left_legos.append((int(kp.pt[0]), int(kp.pt[1])))
-			else:
-				right_legos.append((int(kp.pt[0]), int(kp.pt[1])))
 
 
 		# Draw circles at the positions of each Lego brick in the picture
 		for kp in keypoints:
 			cv2.circle(img, (int(kp.pt[0]), int(kp.pt[1])), 10, (255, 255, 255), -1)
 
-		# Draw circles at the positions of each Lego brick in the picture separated by side
-		for position in left_legos:
-			cv2.circle(img, position, 10, (0, 255, 0), -1)  # left - green
 
-		for position in right_legos:
-			cv2.circle(img, position, 10, (255, 0, 0), -1)  # right - blue
 
-		for position in top_legos:
-			cv2.circle(img, position, 10, (255, 255, 0), -1)  # top - cyan
-
-		for position in bottom_legos:
-			cv2.circle(img, position, 10, (0, 255, 255), -1)  # bottom - yellow
+		# SHOW INTERIM RESULT
+		cv2.imshow('INTERIM RESULT', img)
+		
+		
 
 
 
 
+		# Convert the image to grayscale
+		gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-		# show result
+		# Threshold the image to isolate the yellow Lego bricks
+		_, thresholded = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
+
+		# Find contours in the thresholded image
+		contours, _ = cv2.findContours(thresholded, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+		# Find the contour with the largest area (this should correspond to the yellow rectangle)
+		largest_contour = max(contours, key=cv2.contourArea)
+
+		# Find the keypoints of the yellow Lego bricks
+		yellow_keypoints = []
+		for kp in keypoints:
+			x, y = int(kp.pt[0]), int(kp.pt[1])
+			if cv2.pointPolygonTest(largest_contour, (x, y), False) >= 0:
+				yellow_keypoints.append((x, y))
+
+								
+		# Find the endpoints of the vectors that span the yellow Lego bricks
+		endpoints = []
+		for i in range(len(yellow_keypoints)):
+			x1, y1 = yellow_keypoints[i]
+			for j in range(i+1, len(yellow_keypoints)):
+				x2, y2 = yellow_keypoints[j]
+				if abs(x2 - x1) <= 30:
+					endpoints.append((x1, y1))
+					endpoints.append((x2, y2))
+					break
+				elif abs(y2 - y1) <= 30:
+					endpoints.append((x1, y1))
+					endpoints.append((x2, y2))
+					break
+
+		# Find the unique endpoints
+		unique_endpoints = list(set(endpoints))
+
+	    # Calculate the convex hull of the yellow keypoints
+		hull = cv2.convexHull(np.array(yellow_keypoints))
+
+		# Find the corners of the convex hull
+		corners = cv2.boxPoints(cv2.minAreaRect(hull))
+
+		# Round the corners to integer values
+		corners = np.int0(corners)
+
+		# Sort the corners by x-coordinate
+		corners = sorted(corners, key=lambda x: x[0])
+
+		# Get the two left-most corners
+		left_corners = corners[:2]
+
+		# Sort the corners by y-coordinate
+		left_corners = sorted(left_corners, key=lambda x: x[1], reverse=True)
+
+		# Get the two upper corners
+		upper_left_corners = left_corners[:2]
+
+		# Get the two right-most corners
+		right_corners = corners[-2:]
+
+		# Sort the corners by y-coordinate
+		right_corners = sorted(right_corners, key=lambda x: x[1], reverse=True)
+
+		# Get the two upper corners
+		upper_right_corners = right_corners[:2]
+
+		# Concatenate the upper corners
+		upper_corners = upper_left_corners + upper_right_corners
+
+		# Draw the upper corners
+		for corner in upper_corners:
+			cv2.circle(img, tuple(corner), 5, (0, 255, 0), -1)
+    
+		# Show result
 		cv2.imshow('result', img)
-		
-		
+
+						
+				
+
+##########################################################
+
 
 
 	#waitfor the user to press escape and break the while loop 
