@@ -2,6 +2,7 @@
 import cv2  
 import numpy as np
 import copy
+import time
 
 cap = cv2.VideoCapture(0,cv2.CAP_DSHOW) #video 
 
@@ -27,10 +28,10 @@ cv2.createTrackbar("red_H_high", "Trackbars", 179, 179, update_hsv_values)
 cv2.createTrackbar("red_S_high", "Trackbars", 255, 255, update_hsv_values)
 cv2.createTrackbar("red_V_high", "Trackbars", 255, 255, update_hsv_values)
 
-red_H_low = 170
-red_S_low = 40
+red_H_low = 66
+red_S_low = 0
 red_V_low = 0
-red_H_high = 179
+red_H_high = 99
 red_S_high = 255
 red_V_high = 255
 saved_red_keypoints=[]
@@ -46,6 +47,7 @@ def is_point_on_line(point, line_start, line_end, tolerance):
 
 
 while(1):
+	# importing time module
 
 	#read source image
 	#img=cv2.imread("lego.jpg")
@@ -125,11 +127,12 @@ while(1):
 		saved_red_keypoints=copy.deepcopy(current_red_keypoints)
 		
 	if(len(saved_red_keypoints)==4):
-		
+		print("4")
 		if(saved_red_keypoints[0][0]>saved_red_keypoints[3][0] and 
            saved_red_keypoints[0][1]>saved_red_keypoints[3][1] and 
 		   saved_red_keypoints[2][0]>saved_red_keypoints[1][0] and 
-		   saved_red_keypoints[2][1]<saved_red_keypoints[1][1]):
+		   saved_red_keypoints[2][1]<saved_red_keypoints[1][1] and
+		   saved_red_keypoints[3][0]<200):
 			
 			right_bottom=(int(saved_red_keypoints[0][0]),int(saved_red_keypoints[0][1]))
 			left_bottom=(int(saved_red_keypoints[1][0]),int(saved_red_keypoints[1][1]))
@@ -141,6 +144,7 @@ while(1):
 			print("right_top: ", right_top)
 			print("left_top: ", left_top)
 
+			
 			cv2.circle(img, right_bottom, 5, (100, 200, 200), -1)
 			cv2.circle(img, left_bottom, 5, (200, 100, 200), -1)
 			cv2.circle(img, right_top, 5, (200, 200, 100), -1)
@@ -160,7 +164,7 @@ while(1):
 
 	#Remove to use trackbar !!!
 	H_low = 21 #Default: 0 #Better: 21
-	H_high = 30 #Default: 179 #Better: 30   
+	H_high = 28 #Default: 179 #Better: 30   
 	S_low= 47 #Default: 0 #Better: 47
 	S_high = 255 #Default: 255 #Better: 255
 	V_low= 122 #Default: 0 #Better: 122 
@@ -267,17 +271,25 @@ while(1):
 		bottom_legos = []
 
 		# Calculate the position of the four corners of the yellow rectangle
-		if(len(saved_red_keypoints)==4):
-			for kp in sorted_bricks:
-				if(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),left_top,right_top,5)):
-					top_legos.append((int(kp.pt[0]), int(kp.pt[1])))
-				if(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),left_bottom,right_bottom,5)):
-					bottom_legos.append((int(kp.pt[0]), int(kp.pt[1])))
-				if(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),left_top,left_bottom,5)):
-					left_legos.append((int(kp.pt[0]), int(kp.pt[1])))
-				if(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),right_top,right_bottom,5)):
-					right_legos.append((int(kp.pt[0]), int(kp.pt[1])))
-
+		try:
+			if(len(saved_red_keypoints)==4):
+				for kp in sorted_bricks:
+					if(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),left_top,right_top,8)):
+						top_legos.append((int(kp.pt[0]), int(kp.pt[1])))
+					elif(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),left_bottom,right_bottom,5)):
+						bottom_legos.append((int(kp.pt[0]), int(kp.pt[1])))
+					elif(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),left_top,left_bottom,5)):
+						left_legos.append((int(kp.pt[0]), int(kp.pt[1])))
+					elif(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),right_top,right_bottom,5)):
+						right_legos.append((int(kp.pt[0]), int(kp.pt[1])))
+				print("top_legos: ",len(top_legos))
+				print("bottom_legos: ",len(bottom_legos))
+				print("left_legos: ",len(left_legos))
+				print("right_legos: ",len(right_legos))
+		
+					
+		except:
+			print("error")
 
 
 
@@ -299,18 +311,20 @@ while(1):
 		for position in bottom_legos:
 			cv2.circle(img, position, 10, (0, 255, 255), -1)  # bottom - yellow
 
-
+        ###########
+        # Draw lines between the bricks
+        ###########
 		# Balance the number of bricks in each quadrant
-		min_len = min(len(left_legos), len(right_legos), len(top_legos), len(bottom_legos))
-		left_legos = left_legos[:min_len]
-		right_legos = right_legos[:min_len]
-		top_legos = top_legos[:min_len]
-		bottom_legos = bottom_legos[:min_len]
+		# min_len = min(len(left_legos), len(right_legos), len(top_legos), len(bottom_legos))
+		# left_legos = left_legos[:min_len]
+		# right_legos = right_legos[:min_len]
+		# top_legos = top_legos[:min_len]
+		# bottom_legos = bottom_legos[:min_len]
 		
 		# Connect each brick in one quadrant with a specific brick in the opposite quadrant
-		for i in range(min_len):
-			cv2.line(img, tuple(left_legos[i]), tuple(right_legos[min_len-i-1]), (0, 255, 0), 2)
-			cv2.line(img, tuple(top_legos[i]), tuple(bottom_legos[min_len-i-1]), (0, 255, 0), 2)
+		# for i in range(min_len):
+		# 	cv2.line(img, tuple(left_legos[i]), tuple(right_legos[min_len-i-1]), (0, 255, 0), 2)
+		# 	cv2.line(img, tuple(top_legos[i]), tuple(bottom_legos[min_len-i-1]), (0, 255, 0), 2)
 
 
 		# show result
@@ -328,6 +342,10 @@ while(1):
 	k = cv2.waitKey(1) & 0xFF
 	if k == 27:
 		break
-		
+	#//TODO
+	if(len(saved_red_keypoints)==4):
+		if(len(left_legos)==len(right_legos) and len(top_legos)==len(bottom_legos)):
+			break
+
 #destroys all window
 cv2.destroyAllWindows()
