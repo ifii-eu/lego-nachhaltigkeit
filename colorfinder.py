@@ -1,15 +1,159 @@
 #import opencv and numpy
 import cv2  
 import numpy as np
+import copy
 
 cap = cv2.VideoCapture(0,cv2.CAP_DSHOW) #video 
 
-#ad trackbar here
+
+# Create trackbar callback function
+def update_hsv_values(val):
+    global red_H_low, red_S_low, red_V_low, red_H_high, red_S_high, red_V_high
+    red_H_low = cv2.getTrackbarPos("red_H_low", "Trackbars")
+    red_S_low = cv2.getTrackbarPos("red_S_low", "Trackbars")
+    red_V_low = cv2.getTrackbarPos("red_V_low", "Trackbars")
+    red_H_high = cv2.getTrackbarPos("red_H_high", "Trackbars")
+    red_S_high = cv2.getTrackbarPos("red_S_high", "Trackbars")
+    red_V_high = cv2.getTrackbarPos("red_V_high", "Trackbars")
+
+# Create window to show trackbars
+cv2.namedWindow("Trackbars", cv2.WINDOW_NORMAL)
+
+# Create trackbars for H, S and V values
+cv2.createTrackbar("red_H_low", "Trackbars", 0, 179, update_hsv_values)
+cv2.createTrackbar("red_S_low", "Trackbars", 0, 255, update_hsv_values)
+cv2.createTrackbar("red_V_low", "Trackbars", 0, 255, update_hsv_values)
+cv2.createTrackbar("red_H_high", "Trackbars", 179, 179, update_hsv_values)
+cv2.createTrackbar("red_S_high", "Trackbars", 255, 255, update_hsv_values)
+cv2.createTrackbar("red_V_high", "Trackbars", 255, 255, update_hsv_values)
+
+red_H_low = 170
+red_S_low = 40
+red_V_low = 0
+red_H_high = 179
+red_S_high = 255
+red_V_high = 255
+saved_red_keypoints=[]
+
+
+def is_point_on_line(point, line_start, line_end, tolerance):
+    point_vector = np.array([point[0] - line_start[0], point[1] - line_start[1]])
+    line_vector = np.array([line_end[0] - line_start[0], line_end[1] - line_start[1]])
+    if np.all(line_vector == 0):
+        return False
+    return abs(point_vector[0] / line_vector[0] - point_vector[1] / line_vector[1]) < tolerance
+
+
 
 while(1):
+
 	#read source image
-	img=cv2.imread("lego.jpg")
+	#img=cv2.imread("lego.jpg")
 	res, img = cap.read()
+
+	# Convert the image to HSV color space
+	rhsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+	# Define the lower and upper bounds for the red color in the HSV color space
+	red_hsv_low = np.array([red_H_low, red_S_low, red_V_low], np.uint8)
+	red_hsv_high = np.array([red_H_high, red_S_high, red_V_high], np.uint8)
+
+	# Create a mask using the defined lower and upper bounds
+	red_mask = cv2.inRange(rhsv, red_hsv_low, red_hsv_high)
+
+	# Perform morphological operations on the mask to remove noise
+	kernel = np.ones((5, 5), np.uint8)
+	red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel)
+	red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_CLOSE, kernel)
+
+	# Setup SimpleBlobDetector parameters.
+	params = cv2.SimpleBlobDetector_Params()
+        
+	# Change thresholds
+	minThreshold = 10  #Default: 10  #ändert nichts?
+	maxThreshold = 200  #Default: 200  #ändert nichts?
+
+	# Filter by Area - Nach Fläche filtern
+	# This is to avoid any identification of any small dots present in the image that can be wrongly detected as a circle. 
+	# Damit sollen kleine Punkte im Bild, die fälschlicherweise als Kreis erkannt werden könnten, nicht erkannt werden.
+	filterByArea = True #Default: True  #False ändert sehr viel!!!
+	minArea = 0.000001  #Default: 1500 #Better: 50 damit auch noch bei viel Abstand die kleinen Steine erkannt werden! 
+
+	# Filter by Circularity
+	# This helps to identify, shapes that are more similar to a circle. 
+	# Dies hilft, Formen zu erkennen, die einem Kreis ähnlicher sind.
+	filterByCircularity = True  #Default: True  #False ändert nichts
+	minCircularity = 0.00001  #Default: 0.1  #Better: 0.0001
+
+	# Filter by Convexity
+	# Concavity in general, destroys the circularity. More is the convexity, the closer it is to a close circle. 
+	# Konkavität zerstört im Allgemeinen die Kreisform. Je konvexer die Form ist, desto näher ist sie an einem geschlossenen Kreis
+	filterByConvexity = True  #Default: True  #False ändert nichts
+	minConvexity = 0.00001  #Default: 0.87  #Better: 0.0001
+
+	# Filter by Inertia
+	# Objects similar to a circle has larger inertial.E.g. for a circle, this value is 1, for an ellipse it is between 0 and 1, and for a line it is 0. To filter by inertia ratio, set filterByInertia = 1, and set, 0 <= minInertiaRatio <= 1 and maxInertiaRatio (<=1 ) appropriately. 
+	# Objekte, die einem Kreis ähneln, haben ein größeres Trägheitsverhältnis, z. B. für einen Kreis ist dieser Wert 1, für eine Ellipse liegt er zwischen 0 und 1 und für eine Linie ist er 0. Um nach dem Trägheitsverhältnis zu filtern, setzen Sie filterByInertia = 1 und setzen Sie 0 <= minInertiaRatio <= 1 und maxInertiaRatio (<=1 ) entsprechend.
+	filterByInertia = True  #Default: True  #False ändert nichts
+	minInertiaRatio = 0.00001  #Default: 0.01  #Better: 0.0001
+
+	# Create a detector with the parameters
+	# OLD_not_working: detector = cv2.SimpleBlobDetector()
+	# OLD_working:	detector = cv2.SimpleBlobDetector_create()
+	red_detector = cv2.SimpleBlobDetector_create(params)
+
+
+	# Apply the mask to the image
+	red_mask = cv2.bitwise_not(red_mask)
+
+	# Detect blobs.
+	red_mask_keypoints = red_detector.detect(red_mask)
+
+	# Draw detected blobs 
+	# cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
+	red_keypoints = cv2.drawKeypoints(red_mask, red_mask_keypoints, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+	# Show keypoints
+	cv2.imshow("Red Keypoints", red_keypoints)
+
+	current_red_keypoints=[]
+	if red_mask_keypoints:
+		for keypoint in red_mask_keypoints:
+			current_red_keypoints.append(keypoint.pt)
+			x, y = keypoint.pt
+		
+	if(len(current_red_keypoints)==4):
+		saved_red_keypoints=copy.deepcopy(current_red_keypoints)
+		
+	if(len(saved_red_keypoints)==4):
+		
+		if(saved_red_keypoints[0][0]>saved_red_keypoints[3][0] and 
+           saved_red_keypoints[0][1]>saved_red_keypoints[3][1] and 
+		   saved_red_keypoints[2][0]>saved_red_keypoints[1][0] and 
+		   saved_red_keypoints[2][1]<saved_red_keypoints[1][1]):
+			
+			right_bottom=(int(saved_red_keypoints[0][0]),int(saved_red_keypoints[0][1]))
+			left_bottom=(int(saved_red_keypoints[1][0]),int(saved_red_keypoints[1][1]))
+			right_top=(int(saved_red_keypoints[2][0]),int(saved_red_keypoints[2][1]))
+			left_top=(int(saved_red_keypoints[3][0]),int(saved_red_keypoints[3][1]))
+
+			print("right_bottom: ", right_bottom)
+			print("left_bottom: ", left_bottom)
+			print("right_top: ", right_top)
+			print("left_top: ", left_top)
+
+			cv2.circle(img, right_bottom, 5, (100, 200, 200), -1)
+			cv2.circle(img, left_bottom, 5, (200, 100, 200), -1)
+			cv2.circle(img, right_top, 5, (200, 200, 100), -1)
+			cv2.circle(img, left_top, 5, (100, 100, 100), -1)
+
+
+
+#####################################
+
+
+	#read source image
+	#img=cv2.imread("lego.jpg")
+	#res, img = cap.read()
 
 	#convert sourece image to HSC color mode
 	hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -81,14 +225,13 @@ while(1):
 
 	# Draw detected blobs 
 	# cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
-	im_with_keypoints = cv2.drawKeypoints(mask, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+	im_with_keypoints = cv2.drawKeypoints(mask, keypoints, np.array([]), (0,255,0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 	# Show keypoints
 	cv2.imshow("Keypoints", im_with_keypoints)
 	#show image mask
 	#cv2.imshow('mask',mask)
 
 
-##########################################################
 
 	# Collect x and y coordinates of keypoints
 	x_coords = []
@@ -113,7 +256,7 @@ while(1):
 			angle = np.arctan2(y - y_center, x - x_center)
 			angle_dict[kp] = angle
 
-		# //FIXME //TODO ???
+		
 		# Sort the yellow bricks by their angle
 		sorted_bricks = sorted(keypoints, key=lambda kp: angle_dict[kp])
 
@@ -123,24 +266,20 @@ while(1):
 		top_legos = []
 		bottom_legos = []
 
-		# //FIXME //TODO ???
-		for kp in sorted_bricks:
-			angle = angle_dict[kp]
-			if np.pi / 4 <= angle < 3 * np.pi / 4:
-				bottom_legos.append((int(kp.pt[0]), int(kp.pt[1])))
-			elif -3 * np.pi / 4 <= angle < -np.pi / 4:
-				top_legos.append((int(kp.pt[0]), int(kp.pt[1])))
-			elif 3 * np.pi / 4 <= angle or angle < -3 * np.pi / 4:
-				left_legos.append((int(kp.pt[0]), int(kp.pt[1])))
-			else:
-				right_legos.append((int(kp.pt[0]), int(kp.pt[1])))
+		# Calculate the position of the four corners of the yellow rectangle
+		if(len(saved_red_keypoints)==4):
+			for kp in sorted_bricks:
+				if(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),left_top,right_top,5)):
+					top_legos.append((int(kp.pt[0]), int(kp.pt[1])))
+				if(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),left_bottom,right_bottom,5)):
+					bottom_legos.append((int(kp.pt[0]), int(kp.pt[1])))
+				if(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),left_top,left_bottom,5)):
+					left_legos.append((int(kp.pt[0]), int(kp.pt[1])))
+				if(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),right_top,right_bottom,5)):
+					right_legos.append((int(kp.pt[0]), int(kp.pt[1])))
 
 
-		#print lenght of arrays
-		print("left_legos:", len(left_legos))
-		print("right_legos:", len(right_legos))
-		print("top_legos:", len(top_legos))
-		print("left_legos:", len(bottom_legos))	
+
 
 
 		# Draw circles at the positions of each Lego brick in the picture
