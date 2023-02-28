@@ -2,41 +2,13 @@
 import cv2  
 import numpy as np
 import copy
-import time
 import math
-
-
-def test_near_point(points, m):
-    distances = [math.sqrt((p[0] - m[0])**2 + (p[1] - m[1])**2) for p in points]
-    closest_point_index = distances.index(min(distances))
-    closest_point = points[closest_point_index]
-    return closest_point
 
 def near_point(points, m):
     distances = [math.sqrt((p[0] - m[0])**2 + (p[1] - m[1])**2) for p in points]
     closest_point_index = distances.index(min(distances))
     closest_point = points[closest_point_index]
     return closest_point
-
-def test_rectangle(points):
-    global top_left_point,top_right_point, bottom_left_point, bottom_right_point
-    # Die gegebenen Punkte
-    # Finden der höchsten und niedrigsten x- und y-Koordinate
-    xs = [p[0] for p in points]
-    ys = [p[1] for p in points]
-    min_x = min(xs)
-    max_x = max(xs)
-    min_y = min(ys)
-    max_y = max(ys)
-
-    # Identifizieren der Ecken des Rechtecks
-    top_left_point = test_near_point(points, (min_x, min_y))
-    top_right_point = test_near_point(points, (max_x, min_y))
-    bottom_left_point = test_near_point(points, (min_x, max_y))
-    bottom_right_point = test_near_point(points, (max_x, max_y))
-
-
-
 
 def rectangle(points):
     global top_left_point,top_right_point, bottom_left_point, bottom_right_point
@@ -54,6 +26,7 @@ def rectangle(points):
     top_right_point = near_point(points, (max_x, min_y))
     bottom_left_point = near_point(points, (min_x, max_y))
     bottom_right_point = near_point(points, (max_x, max_y))
+    
 
 # Create trackbar callback function
 def update_hsv_values(val):
@@ -65,7 +38,6 @@ def update_hsv_values(val):
     red_S_high = cv2.getTrackbarPos("red_S_high", "Trackbars")
     red_V_high = cv2.getTrackbarPos("red_V_high", "Trackbars")
 
-  
 def is_point_on_line(point, line_start, line_end, tolerance):
     point_vector = np.array([point[0] - line_start[0], point[1] - line_start[1]])
     line_vector = np.array([line_end[0] - line_start[0], line_end[1] - line_start[1]])
@@ -74,8 +46,8 @@ def is_point_on_line(point, line_start, line_end, tolerance):
     return abs(point_vector[0] / line_vector[0] - point_vector[1] / line_vector[1]) < tolerance
 
 def midpoints_calc(points):
-    # Sort the points
-	print("points:" + str(points))
+
+	#sortiert nach x Koordinate
 	sorted_points = sorted(points, key=lambda x: x[0])
     
     # Calculate the midpoints
@@ -86,9 +58,7 @@ def midpoints_calc(points):
 		x2, y2 = sorted_points[i+1]
 		midpoint = (int((x1+x2)/2), int((y1+y2)/2))
 		midpoints.append(midpoint)
-		print(str(i))
-		print("x1:" + str(x1))
-		print("x2:" + str(x2))
+
 	
     
     # Add the points and midpoints to a new list
@@ -99,7 +69,9 @@ def midpoints_calc(points):
     
     # Sort the new list
 	new_points = sorted(new_points)
-    
+	new_points.pop(0)
+	new_points.pop(len(new_points)-1)
+
 	return new_points
 
 
@@ -134,7 +106,8 @@ while(1):
 
 	#read source image
 	#img=cv2.imread("lego.jpg")
-	res, img = cap.read()
+	#res, img = cap.read()
+	img=cv2.imread("foto2.jpg")
 
 	# Convert the image to HSV color space
 	rhsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -341,10 +314,10 @@ while(1):
 		sorted_bricks = sorted(keypoints, key=lambda kp: angle_dict[kp])
 
 		# Assign each brick to a quadrant based on its angle
-		left_legos = []
-		right_legos = []
-		top_legos = []
-		bottom_legos = []
+		left_legos = [bottom_left_point, top_left_point]
+		right_legos = [bottom_right_point, top_right_point]
+		top_legos = [top_left_point, top_right_point]
+		bottom_legos = [bottom_left_point, bottom_right_point]
 
 		# Calculate the position of the four corners of the yellow rectangle
 		try:
@@ -368,7 +341,6 @@ while(1):
 		# Draw circles at the positions of each Lego brick in the picture separated by side
 		for position in left_legos:
 			cv2.circle(img, position, 3, (0, 0, 255), -1)  # left - red
-			print("left_legos: " + str(position))
 
 		for position in right_legos:
 			cv2.circle(img, position, 3, (255, 0, 0), -1)  # right - blue
@@ -418,22 +390,13 @@ bottom_legos=midpoints_calc(bottom_legos)
 top_legos=midpoints_calc(top_legos)
 left_legos=midpoints_calc(left_legos)
 
-for position in left_legos:
-	print("left_legos: " + str(position))
 
 
 while(1):
-	res, img = cap.read()
+	#res, img = cap.read()
+	img=cv2.imread("foto2.jpg")
 	for kp in keypoints:
 		cv2.circle(img, (int(kp.pt[0]), int(kp.pt[1])), 5, (255, 255, 255), -1)
-
-
-	#cv2.circle(img, (154, 189), 5, (0, 255, 255), -1)
-	#print(left_legos)
-	# print(len(left_legos))
-	# print(len(right_legos))
-	# print(len(top_legos))
-	# print(len(bottom_legos))
 
 	# Draw circles at the positions of each Lego brick in the picture separated by side
 	for position in left_legos:
@@ -450,7 +413,7 @@ while(1):
 
 
 
-	# Sortiere die Elemente in right_legos und left_legos nach ihrer y-Koordinate
+	# Sortiere die Elemente in right_legos und left_legos nach der y-Koordinate
 	right_legos = sorted(right_legos, key=lambda x: x[1])
 	left_legos = sorted(left_legos, key=lambda x: x[1])
 
@@ -467,10 +430,53 @@ while(1):
 		cv2.line(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
 
+	intersections = []
+
+	# Draw lines between corresponding elements in right_legos and left_legos
+	for i in range(len(right_legos)):
+		x1, y1 = right_legos[i]
+		x2, y2 = left_legos[i]
+		cv2.line(img, (x1, y1), (x2, y2), (255, 0, 0), 2)
+
+		# Check if the line from right_legos to left_legos intersects with a line from top_legos to bottom_legos
+		for j in range(len(top_legos)):
+			x3, y3 = top_legos[j]
+			x4, y4 = bottom_legos[j]
+			cv2.line(img, (x3, y3), (x4, y4), (0, 255, 0), 2)
+			
+			# Calculate the intersection point
+			denominator = ((x2 - x1) * (y4 - y3)) - ((y2 - y1) * (x4 - x3))
+			if denominator == 0:
+				continue
+			ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denominator
+			ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denominator
+			if ua >= 0 and ua <= 1 and ub >= 0 and ub <= 1:
+				intersection_x = int(x1 + ua * (x2 - x1))
+				intersection_y = int(y1 + ua * (y2 - y1))
+				intersections.append((intersection_x, intersection_y))
+
+	
+
+	colorfinderarr=[[0]*len(left_legos) for i in range(len(top_legos))]
+	# Draw circles at the intersection points
+
+	counteri=0
+	for rangex in range(0,len(left_legos)):
+		for rangey in range(0,len(top_legos)):
+			colorfinderarr[rangey][rangex]=intersections[counteri]
+			counteri+=1
+
+	#cv2.circle(img, colorfinderarr[2][2], 12, (0, 0, 255), -1)
+
+
+	# Draw circles at the intersection points
+	# for intersection in intersections:
+	# 	cv2.circle(img, intersection, 5, (0, 0, 255), -1)
+	# 	print (intersection)
 
 
 	# resize image & show result
-	img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+	#img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
 	cv2.imshow('Result', img)
 
 
