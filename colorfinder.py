@@ -3,9 +3,31 @@ import cv2
 import numpy as np
 import copy
 import time
+import math
 
-cap = cv2.VideoCapture(0,cv2.CAP_DSHOW) #video 
+def near_point(points, m):
+    distances = [math.sqrt((p[0] - m[0])**2 + (p[1] - m[1])**2) for p in points]
+    closest_point_index = distances.index(min(distances))
+    closest_point = points[closest_point_index]
+    return closest_point
 
+
+def rectangle(points):
+    global top_left_point,top_right_point, bottom_left_point, bottom_right_point
+    # Die gegebenen Punkte
+    # Finden der höchsten und niedrigsten x- und y-Koordinate
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    min_x = min(xs)
+    max_x = max(xs)
+    min_y = min(ys)
+    max_y = max(ys)
+
+    # Identifizieren der Ecken des Rechtecks
+    top_left_point = near_point(points, (min_x, min_y))
+    top_right_point = near_point(points, (max_x, min_y))
+    bottom_left_point = near_point(points, (min_x, max_y))
+    bottom_right_point = near_point(points, (max_x, max_y))
 
 # Create trackbar callback function
 def update_hsv_values(val):
@@ -17,6 +39,62 @@ def update_hsv_values(val):
     red_S_high = cv2.getTrackbarPos("red_S_high", "Trackbars")
     red_V_high = cv2.getTrackbarPos("red_V_high", "Trackbars")
 
+  
+def is_point_on_line(point, line_start, line_end, tolerance):
+    point_vector = np.array([point[0] - line_start[0], point[1] - line_start[1]])
+    line_vector = np.array([line_end[0] - line_start[0], line_end[1] - line_start[1]])
+    if np.all(line_vector == 0):
+        return False
+    return abs(point_vector[0] / line_vector[0] - point_vector[1] / line_vector[1]) < tolerance
+
+
+def sort_points_on_line(points):
+    # Sortieren der Punkte nach der x-Koordinate
+    points = sorted(points)
+    
+    # Berechnung der Steigung der Linie
+    x1, y1 = points[0]
+    x2, y2 = points[-1]
+    slope = (y2-y1) / (x2-x1)
+    
+    # Bestimmung, welche Koordinate sich stärker ändert
+    if abs(slope) > 1:
+        # sortiere Punkte nach y-Koordinate
+        points = sorted(points, key=lambda p: p[1])
+    else:
+        # sortiere Punkte nach x-Koordinate
+        points = sorted(points, key=lambda p: p[0])
+    
+    return points
+
+
+def midpoints_calc(points):
+	sorted_points = sorted(points)
+	# Berechnung der Mittelpunkte
+	midpoints = []
+	new_points= []
+	for i in range(len(sorted_points)-1):
+		x1, y1 = sorted_points[i]
+		x2, y2 = sorted_points[i+1]
+		midpoint = (int((x1+x2)/2), int((y1+y2)/2))
+		midpoints.append(midpoint)
+	#print("points")
+	#print(points)
+	#print("midpoints")
+	#print(midpoints)
+	# Ausgabe der Ergebnisse
+	for n in range(len(points)):
+		new_points.append(points[n])
+		if(n<len(midpoints)):
+			new_points.append(midpoints[n])
+	#print("new_points")
+	#print(new_points)
+
+
+	return new_points
+
+cap = cv2.VideoCapture(1,cv2.CAP_DSHOW) #video 
+k=0
 # Create window to show trackbars
 cv2.namedWindow("Trackbars", cv2.WINDOW_NORMAL)
 
@@ -36,13 +114,6 @@ red_S_high = 255
 red_V_high = 255
 saved_red_keypoints=[]
 
-
-def is_point_on_line(point, line_start, line_end, tolerance):
-    point_vector = np.array([point[0] - line_start[0], point[1] - line_start[1]])
-    line_vector = np.array([line_end[0] - line_start[0], line_end[1] - line_start[1]])
-    if np.all(line_vector == 0):
-        return False
-    return abs(point_vector[0] / line_vector[0] - point_vector[1] / line_vector[1]) < tolerance
 
 
 
@@ -126,29 +197,22 @@ while(1):
 	if(len(current_red_keypoints)==4):
 		saved_red_keypoints=copy.deepcopy(current_red_keypoints)
 		
-	if(len(saved_red_keypoints)==4):
-		print("4")
-		if(saved_red_keypoints[0][0]>saved_red_keypoints[3][0] and 
-           saved_red_keypoints[0][1]>saved_red_keypoints[3][1] and 
-		   saved_red_keypoints[2][0]>saved_red_keypoints[1][0] and 
-		   saved_red_keypoints[2][1]<saved_red_keypoints[1][1] and
-		   saved_red_keypoints[3][0]<200):
-			
-			right_bottom=(int(saved_red_keypoints[0][0]),int(saved_red_keypoints[0][1]))
-			left_bottom=(int(saved_red_keypoints[1][0]),int(saved_red_keypoints[1][1]))
-			right_top=(int(saved_red_keypoints[2][0]),int(saved_red_keypoints[2][1]))
-			left_top=(int(saved_red_keypoints[3][0]),int(saved_red_keypoints[3][1]))
+	if(len(saved_red_keypoints)==4):			
+		saved_red_keypoints[0]=(int(saved_red_keypoints[0][0]),int(saved_red_keypoints[0][1]))
+		saved_red_keypoints[1]=(int(saved_red_keypoints[1][0]),int(saved_red_keypoints[1][1]))
+		saved_red_keypoints[2]=(int(saved_red_keypoints[2][0]),int(saved_red_keypoints[2][1]))
+		saved_red_keypoints[3]=(int(saved_red_keypoints[3][0]),int(saved_red_keypoints[3][1]))
 
-			print("right_bottom: ", right_bottom)
-			print("left_bottom: ", left_bottom)
-			print("right_top: ", right_top)
-			print("left_top: ", left_top)
+		rectangle(saved_red_keypoints)
 
-			
-			cv2.circle(img, right_bottom, 5, (100, 200, 200), -1)
-			cv2.circle(img, left_bottom, 5, (200, 100, 200), -1)
-			cv2.circle(img, right_top, 5, (200, 200, 100), -1)
-			cv2.circle(img, left_top, 5, (100, 100, 100), -1)
+
+
+		
+
+		cv2.circle(img, bottom_right_point, 5, (100, 200, 200), -1)
+		cv2.circle(img, bottom_left_point, 5, (200, 100, 200), -1)
+		cv2.circle(img, top_right_point, 5, (200, 200, 100), -1)
+		cv2.circle(img, top_left_point, 5, (100, 100, 100), -1)
 
 
 
@@ -167,7 +231,7 @@ while(1):
 	H_high = 28 #Default: 179 #Better: 30   
 	S_low= 47 #Default: 0 #Better: 47
 	S_high = 255 #Default: 255 #Better: 255
-	V_low= 122 #Default: 0 #Better: 122 
+	V_low= 100 #Default: 0 #Better: 122 
 	V_high = 255 #Default: 255 #Better: 255
 
 	#hsv
@@ -189,32 +253,32 @@ while(1):
 	params = cv2.SimpleBlobDetector_Params()
         
 	# Change thresholds
-	minThreshold = 10  #Default: 10  #ändert nichts?
-	maxThreshold = 200  #Default: 200  #ändert nichts?
+	params.minThreshold = 10  #Default: 10  #ändert nichts?
+	params.maxThreshold = 200  #Default: 200  #ändert nichts?
 
 	# Filter by Area - Nach Fläche filtern
 	# This is to avoid any identification of any small dots present in the image that can be wrongly detected as a circle. 
 	# Damit sollen kleine Punkte im Bild, die fälschlicherweise als Kreis erkannt werden könnten, nicht erkannt werden.
-	filterByArea = True #Default: True  #False ändert sehr viel!!!
-	minArea = 0.000001  #Default: 1500 #Better: 50 damit auch noch bei viel Abstand die kleinen Steine erkannt werden! 
+	params.filterByArea = True #Default: True  #False ändert sehr viel!!!
+	params.minArea = 0.000001  #Default: 1500 #Better: 50 damit auch noch bei viel Abstand die kleinen Steine erkannt werden! 
 
 	# Filter by Circularity
 	# This helps to identify, shapes that are more similar to a circle. 
 	# Dies hilft, Formen zu erkennen, die einem Kreis ähnlicher sind.
-	filterByCircularity = True  #Default: True  #False ändert nichts
-	minCircularity = 0.00001  #Default: 0.1  #Better: 0.0001
+	params.filterByCircularity = True  #Default: True  #False ändert nichts
+	params.minCircularity = 0.00001  #Default: 0.1  #Better: 0.0001
 
 	# Filter by Convexity
 	# Concavity in general, destroys the circularity. More is the convexity, the closer it is to a close circle. 
 	# Konkavität zerstört im Allgemeinen die Kreisform. Je konvexer die Form ist, desto näher ist sie an einem geschlossenen Kreis
-	filterByConvexity = True  #Default: True  #False ändert nichts
-	minConvexity = 0.00001  #Default: 0.87  #Better: 0.0001
+	params.filterByConvexity = True  #Default: True  #False ändert nichts
+	params.minConvexity = 0.00001  #Default: 0.87  #Better: 0.0001
 
 	# Filter by Inertia
 	# Objects similar to a circle has larger inertial.E.g. for a circle, this value is 1, for an ellipse it is between 0 and 1, and for a line it is 0. To filter by inertia ratio, set filterByInertia = 1, and set, 0 <= minInertiaRatio <= 1 and maxInertiaRatio (<=1 ) appropriately. 
 	# Objekte, die einem Kreis ähneln, haben ein größeres Trägheitsverhältnis, z. B. für einen Kreis ist dieser Wert 1, für eine Ellipse liegt er zwischen 0 und 1 und für eine Linie ist er 0. Um nach dem Trägheitsverhältnis zu filtern, setzen Sie filterByInertia = 1 und setzen Sie 0 <= minInertiaRatio <= 1 und maxInertiaRatio (<=1 ) entsprechend.
-	filterByInertia = True  #Default: True  #False ändert nichts
-	minInertiaRatio = 0.00001  #Default: 0.01  #Better: 0.0001
+	params.filterByInertia = True  #Default: True  #False ändert nichts
+	params.minInertiaRatio = 0.00001  #Default: 0.01  #Better: 0.0001
 
 	# Create a detector with the parameters
 	# OLD_not_working: detector = cv2.SimpleBlobDetector()
@@ -274,18 +338,15 @@ while(1):
 		try:
 			if(len(saved_red_keypoints)==4):
 				for kp in sorted_bricks:
-					if(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),left_top,right_top,8)):
+					if(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),top_left_point,top_right_point,8)):
 						top_legos.append((int(kp.pt[0]), int(kp.pt[1])))
-					elif(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),left_bottom,right_bottom,5)):
+					elif(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),bottom_left_point,bottom_right_point,5)):
 						bottom_legos.append((int(kp.pt[0]), int(kp.pt[1])))
-					elif(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),left_top,left_bottom,5)):
+					elif(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),top_left_point,bottom_left_point,5)):
 						left_legos.append((int(kp.pt[0]), int(kp.pt[1])))
-					elif(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),right_top,right_bottom,5)):
+					elif(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),top_right_point,bottom_right_point,5)):
 						right_legos.append((int(kp.pt[0]), int(kp.pt[1])))
-				print("top_legos: ",len(top_legos))
-				print("bottom_legos: ",len(bottom_legos))
-				print("left_legos: ",len(left_legos))
-				print("right_legos: ",len(right_legos))
+
 		
 					
 		except:
@@ -296,36 +357,20 @@ while(1):
 
 		# Draw circles at the positions of each Lego brick in the picture
 		for kp in keypoints:
-			cv2.circle(img, (int(kp.pt[0]), int(kp.pt[1])), 10, (255, 255, 255), -1)
+			cv2.circle(img, (int(kp.pt[0]), int(kp.pt[1])), 5, (255, 255, 255), -1)
 
 		# Draw circles at the positions of each Lego brick in the picture separated by side
 		for position in left_legos:
-			cv2.circle(img, position, 10, (0, 0, 255), -1)  # left - red
+			cv2.circle(img, position, 3, (0, 0, 255), -1)  # left - red
 
 		for position in right_legos:
-			cv2.circle(img, position, 10, (255, 0, 0), -1)  # right - blue
+			cv2.circle(img, position, 3, (255, 0, 0), -1)  # right - blue
 
 		for position in top_legos:
-			cv2.circle(img, position, 10, (255, 255, 0), -1)  # top - cyan
+			cv2.circle(img, position, 3, (255, 255, 0), -1)  # top - cyan
 
 		for position in bottom_legos:
-			cv2.circle(img, position, 10, (0, 255, 255), -1)  # bottom - yellow
-
-        ###########
-        # Draw lines between the bricks
-        ###########
-		# Balance the number of bricks in each quadrant
-		# min_len = min(len(left_legos), len(right_legos), len(top_legos), len(bottom_legos))
-		# left_legos = left_legos[:min_len]
-		# right_legos = right_legos[:min_len]
-		# top_legos = top_legos[:min_len]
-		# bottom_legos = bottom_legos[:min_len]
-		
-		# Connect each brick in one quadrant with a specific brick in the opposite quadrant
-		# for i in range(min_len):
-		# 	cv2.line(img, tuple(left_legos[i]), tuple(right_legos[min_len-i-1]), (0, 255, 0), 2)
-		# 	cv2.line(img, tuple(top_legos[i]), tuple(bottom_legos[min_len-i-1]), (0, 255, 0), 2)
-
+			cv2.circle(img, position, 3, (0, 255, 255), -1)  # bottom - yellow
 
 		# show result
 		scale_percent = 300 # percent of original size
@@ -343,9 +388,55 @@ while(1):
 	if k == 27:
 		break
 	#//TODO
-	if(len(saved_red_keypoints)==4):
+	if(len(saved_red_keypoints)==4 and k>20):
 		if(len(left_legos)==len(right_legos) and len(top_legos)==len(bottom_legos)):
 			break
+	else:
+		k+=k
+
+#Sort by Line
+
+right_legos=midpoints_calc(sort_points_on_line(right_legos))
+bottom_legos=midpoints_calc(sort_points_on_line(bottom_legos))
+top_legos=midpoints_calc(sort_points_on_line(top_legos))
+left_legos=midpoints_calc(sort_points_on_line(left_legos))
+
+
+
+
+
+
+
+while(1):
+	res, img = cap.read()
+	for kp in keypoints:
+		cv2.circle(img, (int(kp.pt[0]), int(kp.pt[1])), 5, (255, 255, 255), -1)
+
+	cv2.circle(img, (154, 189), 5, (0, 255, 255), -1)
+	# Draw circles at the positions of each Lego brick in the picture separated by side
+	print(left_legos)
+	for position in left_legos:
+		cv2.circle(img, position, 2, (0, 0, 255), -1)  # left - red
+
+	for position in right_legos:
+		cv2.circle(img, position, 2, (255, 0, 0), -1)  # right - blue
+
+	for position in top_legos:
+		cv2.circle(img, position, 2, (255, 255, 0), -1)  # top - cyan
+
+	for position in bottom_legos:
+		cv2.circle(img, position, 2, (0, 255, 255), -1)  # bottom - yellow
+
+	img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+	cv2.imshow('result', img)
+		# end
+
+	#waitfor the user to press escape and break the while loop 
+	k = cv2.waitKey(1) & 0xFF
+	if k == 27:
+		break
+
+
 
 #destroys all window
 cv2.destroyAllWindows()
