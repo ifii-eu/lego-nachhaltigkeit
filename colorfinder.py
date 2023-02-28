@@ -1,15 +1,41 @@
-#import opencv and numpy
+#imports
 import cv2  
 import numpy as np
 import copy
 import time
 import math
 
+
+def test_near_point(points, m):
+    distances = [math.sqrt((p[0] - m[0])**2 + (p[1] - m[1])**2) for p in points]
+    closest_point_index = distances.index(min(distances))
+    closest_point = points[closest_point_index]
+    return closest_point
+
 def near_point(points, m):
     distances = [math.sqrt((p[0] - m[0])**2 + (p[1] - m[1])**2) for p in points]
     closest_point_index = distances.index(min(distances))
     closest_point = points[closest_point_index]
     return closest_point
+
+def test_rectangle(points):
+    global top_left_point,top_right_point, bottom_left_point, bottom_right_point
+    # Die gegebenen Punkte
+    # Finden der höchsten und niedrigsten x- und y-Koordinate
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    min_x = min(xs)
+    max_x = max(xs)
+    min_y = min(ys)
+    max_y = max(ys)
+
+    # Identifizieren der Ecken des Rechtecks
+    top_left_point = test_near_point(points, (min_x, min_y))
+    top_right_point = test_near_point(points, (max_x, min_y))
+    bottom_left_point = test_near_point(points, (min_x, max_y))
+    bottom_right_point = test_near_point(points, (max_x, max_y))
+
+
 
 
 def rectangle(points):
@@ -47,53 +73,39 @@ def is_point_on_line(point, line_start, line_end, tolerance):
         return False
     return abs(point_vector[0] / line_vector[0] - point_vector[1] / line_vector[1]) < tolerance
 
-
-def sort_points_on_line(points):
-    # Sortieren der Punkte nach der x-Koordinate
-    points = sorted(points)
-    
-    # Berechnung der Steigung der Linie
-    x1, y1 = points[0]
-    x2, y2 = points[-1]
-    slope = (y2-y1) / (x2-x1)
-    
-    # Bestimmung, welche Koordinate sich stärker ändert
-    if abs(slope) > 1:
-        # sortiere Punkte nach y-Koordinate
-        points = sorted(points, key=lambda p: p[1])
-    else:
-        # sortiere Punkte nach x-Koordinate
-        points = sorted(points, key=lambda p: p[0])
-    
-    return points
-
-
 def midpoints_calc(points):
-	sorted_points = sorted(points)
-	# Berechnung der Mittelpunkte
+    # Sort the points
+	print("points:" + str(points))
+	sorted_points = sorted(points, key=lambda x: x[0])
+    
+    # Calculate the midpoints
 	midpoints = []
-	new_points= []
-	for i in range(len(sorted_points)-1):
+	new_points = []
+	for i in range(len(sorted_points) - 1):
 		x1, y1 = sorted_points[i]
 		x2, y2 = sorted_points[i+1]
 		midpoint = (int((x1+x2)/2), int((y1+y2)/2))
 		midpoints.append(midpoint)
-	#print("points")
-	#print(points)
-	#print("midpoints")
-	#print(midpoints)
-	# Ausgabe der Ergebnisse
+		print(str(i))
+		print("x1:" + str(x1))
+		print("x2:" + str(x2))
+	
+    
+    # Add the points and midpoints to a new list
 	for n in range(len(points)):
 		new_points.append(points[n])
-		if(n<len(midpoints)):
+		if n < len(midpoints):
 			new_points.append(midpoints[n])
-	#print("new_points")
-	#print(new_points)
-
-
+    
+    # Sort the new list
+	new_points = sorted(new_points)
+    
 	return new_points
 
-cap = cv2.VideoCapture(1,cv2.CAP_DSHOW) #video 
+
+
+
+cap = cv2.VideoCapture(0,cv2.CAP_DSHOW) #video 
 k=0
 # Create window to show trackbars
 cv2.namedWindow("Trackbars", cv2.WINDOW_NORMAL)
@@ -345,15 +357,9 @@ while(1):
 					elif(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),top_left_point,bottom_left_point,5)):
 						left_legos.append((int(kp.pt[0]), int(kp.pt[1])))
 					elif(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),top_right_point,bottom_right_point,5)):
-						right_legos.append((int(kp.pt[0]), int(kp.pt[1])))
-
-		
-					
+						right_legos.append((int(kp.pt[0]), int(kp.pt[1])))		
 		except:
 			print("error")
-
-
-
 
 		# Draw circles at the positions of each Lego brick in the picture
 		for kp in keypoints:
@@ -362,6 +368,7 @@ while(1):
 		# Draw circles at the positions of each Lego brick in the picture separated by side
 		for position in left_legos:
 			cv2.circle(img, position, 3, (0, 0, 255), -1)  # left - red
+			print("left_legos: " + str(position))
 
 		for position in right_legos:
 			cv2.circle(img, position, 3, (255, 0, 0), -1)  # right - blue
@@ -372,16 +379,20 @@ while(1):
 		for position in bottom_legos:
 			cv2.circle(img, position, 3, (0, 255, 255), -1)  # bottom - yellow
 
-		# show result
+
+
+  
+
+		# resize image & show result
 		scale_percent = 300 # percent of original size
 		width = int(img.shape[1] * scale_percent / 100)
 		height = int(img.shape[0] * scale_percent / 100)
 		dim = (width, height)
-  
-		# resize image
 		img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
-		cv2.imshow('result', img)
-		# end
+		
+		#cv2.imshow('result', img)
+
+
 
 	#waitfor the user to press escape and break the while loop 
 	k = cv2.waitKey(1) & 0xFF
@@ -389,22 +400,26 @@ while(1):
 		break
 	#//TODO
 	if(len(saved_red_keypoints)==4 and k>20):
-		if(len(left_legos)==len(right_legos) and len(top_legos)==len(bottom_legos)):
-			break
+		try:
+			if(left_legos):
+				if(len(left_legos)==len(right_legos) and len(top_legos)==len(bottom_legos)):
+					break
+		except:
+			print("error Left Legos")
+
 	else:
 		k+=k
 
+
+
 #Sort by Line
+right_legos=midpoints_calc(right_legos)
+bottom_legos=midpoints_calc(bottom_legos)
+top_legos=midpoints_calc(top_legos)
+left_legos=midpoints_calc(left_legos)
 
-right_legos=midpoints_calc(sort_points_on_line(right_legos))
-bottom_legos=midpoints_calc(sort_points_on_line(bottom_legos))
-top_legos=midpoints_calc(sort_points_on_line(top_legos))
-left_legos=midpoints_calc(sort_points_on_line(left_legos))
-
-
-
-
-
+for position in left_legos:
+	print("left_legos: " + str(position))
 
 
 while(1):
@@ -412,9 +427,15 @@ while(1):
 	for kp in keypoints:
 		cv2.circle(img, (int(kp.pt[0]), int(kp.pt[1])), 5, (255, 255, 255), -1)
 
-	cv2.circle(img, (154, 189), 5, (0, 255, 255), -1)
+
+	#cv2.circle(img, (154, 189), 5, (0, 255, 255), -1)
+	#print(left_legos)
+	# print(len(left_legos))
+	# print(len(right_legos))
+	# print(len(top_legos))
+	# print(len(bottom_legos))
+
 	# Draw circles at the positions of each Lego brick in the picture separated by side
-	print(left_legos)
 	for position in left_legos:
 		cv2.circle(img, position, 2, (0, 0, 255), -1)  # left - red
 
@@ -427,9 +448,31 @@ while(1):
 	for position in bottom_legos:
 		cv2.circle(img, position, 2, (0, 255, 255), -1)  # bottom - yellow
 
+
+
+	# Sortiere die Elemente in right_legos und left_legos nach ihrer y-Koordinate
+	right_legos = sorted(right_legos, key=lambda x: x[1])
+	left_legos = sorted(left_legos, key=lambda x: x[1])
+
+	# Zeichne Linien zwischen den entsprechenden Elementen in right_legos und left_legos
+	for i in range(len(right_legos)):
+		x1, y1 = right_legos[i]
+		x2, y2 = left_legos[i]
+		cv2.line(img, (x1, y1), (x2, y2), (255, 0, 0), 2)
+
+	# Zeichne Linien zwischen den entsprechenden Elementen in top_legos und bottom_legos
+	for i in range(len(top_legos)):
+		x1, y1 = top_legos[i]
+		x2, y2 = bottom_legos[i]
+		cv2.line(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+
+
+
+	# resize image & show result
 	img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
-	cv2.imshow('result', img)
-		# end
+	cv2.imshow('Result', img)
+
 
 	#waitfor the user to press escape and break the while loop 
 	k = cv2.waitKey(1) & 0xFF
