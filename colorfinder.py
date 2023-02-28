@@ -4,6 +4,10 @@ import numpy as np
 import copy
 import math
 
+#here please change the name of your lego image
+global imgName
+imgName = "foto2.jpg" #e.g. foto2.jpg
+
 def near_point(points, m):
     distances = [math.sqrt((p[0] - m[0])**2 + (p[1] - m[1])**2) for p in points]
     closest_point_index = distances.index(min(distances))
@@ -30,13 +34,13 @@ def rectangle(points):
 
 # Create trackbar callback function
 def update_hsv_values(val):
-    global red_H_low, red_S_low, red_V_low, red_H_high, red_S_high, red_V_high
-    red_H_low = cv2.getTrackbarPos("red_H_low", "Trackbars")
-    red_S_low = cv2.getTrackbarPos("red_S_low", "Trackbars")
-    red_V_low = cv2.getTrackbarPos("red_V_low", "Trackbars")
-    red_H_high = cv2.getTrackbarPos("red_H_high", "Trackbars")
-    red_S_high = cv2.getTrackbarPos("red_S_high", "Trackbars")
-    red_V_high = cv2.getTrackbarPos("red_V_high", "Trackbars")
+    global corner_H_low, corner_S_low, corner_V_low, corner_H_high, corner_S_high, corner_V_high
+    corner_H_low = cv2.getTrackbarPos("corner_H_low", "Trackbars")
+    corner_S_low = cv2.getTrackbarPos("corner_S_low", "Trackbars")
+    corner_V_low = cv2.getTrackbarPos("corner_V_low", "Trackbars")
+    corner_H_high = cv2.getTrackbarPos("corner_H_high", "Trackbars")
+    corner_S_high = cv2.getTrackbarPos("corner_S_high", "Trackbars")
+    corner_V_high = cv2.getTrackbarPos("corner_V_high", "Trackbars")
 
 def is_point_on_line(point, line_start, line_end, tolerance):
     point_vector = np.array([point[0] - line_start[0], point[1] - line_start[1]])
@@ -75,30 +79,26 @@ def midpoints_calc(points):
 	return new_points
 
 
-
-
 cap = cv2.VideoCapture(0,cv2.CAP_DSHOW) #video 
 k=0
 # Create window to show trackbars
 cv2.namedWindow("Trackbars", cv2.WINDOW_NORMAL)
 
 # Create trackbars for H, S and V values
-cv2.createTrackbar("red_H_low", "Trackbars", 0, 179, update_hsv_values)
-cv2.createTrackbar("red_S_low", "Trackbars", 0, 255, update_hsv_values)
-cv2.createTrackbar("red_V_low", "Trackbars", 0, 255, update_hsv_values)
-cv2.createTrackbar("red_H_high", "Trackbars", 179, 179, update_hsv_values)
-cv2.createTrackbar("red_S_high", "Trackbars", 255, 255, update_hsv_values)
-cv2.createTrackbar("red_V_high", "Trackbars", 255, 255, update_hsv_values)
+cv2.createTrackbar("corner_H_low", "Trackbars", 0, 179, update_hsv_values)
+cv2.createTrackbar("corner_S_low", "Trackbars", 0, 255, update_hsv_values)
+cv2.createTrackbar("corner_V_low", "Trackbars", 0, 255, update_hsv_values)
+cv2.createTrackbar("corner_H_high", "Trackbars", 179, 179, update_hsv_values)
+cv2.createTrackbar("corner_S_high", "Trackbars", 255, 255, update_hsv_values)
+cv2.createTrackbar("corner_V_high", "Trackbars", 255, 255, update_hsv_values)
 
-red_H_low = 66
-red_S_low = 0
-red_V_low = 0
-red_H_high = 99
-red_S_high = 255
-red_V_high = 255
-saved_red_keypoints=[]
-
-
+corner_H_low = 66
+corner_S_low = 0
+corner_V_low = 0
+corner_H_high = 99
+corner_S_high = 255
+corner_V_high = 255
+saved_corner_keypoints=[]
 
 
 while(1):
@@ -107,22 +107,22 @@ while(1):
 	#read source image
 	#img=cv2.imread("lego.jpg")
 	#res, img = cap.read()
-	img=cv2.imread("foto2.jpg")
+	img=cv2.imread(imgName)
 
 	# Convert the image to HSV color space
 	rhsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
 	# Define the lower and upper bounds for the red color in the HSV color space
-	red_hsv_low = np.array([red_H_low, red_S_low, red_V_low], np.uint8)
-	red_hsv_high = np.array([red_H_high, red_S_high, red_V_high], np.uint8)
+	corner_hsv_low = np.array([corner_H_low, corner_S_low, corner_V_low], np.uint8)
+	corner_hsv_high = np.array([corner_H_high, corner_S_high, corner_V_high], np.uint8)
 
 	# Create a mask using the defined lower and upper bounds
-	red_mask = cv2.inRange(rhsv, red_hsv_low, red_hsv_high)
+	corner_mask = cv2.inRange(rhsv, corner_hsv_low, corner_hsv_high)
 
 	# Perform morphological operations on the mask to remove noise
 	kernel = np.ones((5, 5), np.uint8)
-	red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel)
-	red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_CLOSE, kernel)
+	corner_mask = cv2.morphologyEx(corner_mask, cv2.MORPH_OPEN, kernel)
+	corner_mask = cv2.morphologyEx(corner_mask, cv2.MORPH_CLOSE, kernel)
 
 	# Setup SimpleBlobDetector parameters.
 	params = cv2.SimpleBlobDetector_Params()
@@ -158,55 +158,43 @@ while(1):
 	# Create a detector with the parameters
 	# OLD_not_working: detector = cv2.SimpleBlobDetector()
 	# OLD_working:	detector = cv2.SimpleBlobDetector_create()
-	red_detector = cv2.SimpleBlobDetector_create(params)
+	corner_detector = cv2.SimpleBlobDetector_create(params)
 
 
 	# Apply the mask to the image
-	red_mask = cv2.bitwise_not(red_mask)
+	corner_mask = cv2.bitwise_not(corner_mask)
 
 	# Detect blobs.
-	red_mask_keypoints = red_detector.detect(red_mask)
+	corner_mask_keypoints = corner_detector.detect(corner_mask)
 
 	# Draw detected blobs 
 	# cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
-	red_keypoints = cv2.drawKeypoints(red_mask, red_mask_keypoints, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+	corner_keypoints = cv2.drawKeypoints(corner_mask, corner_mask_keypoints, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 	# Show keypoints
-	cv2.imshow("Red Keypoints", red_keypoints)
+	cv2.imshow("Corner Keypoints", corner_keypoints)
 
-	current_red_keypoints=[]
-	if red_mask_keypoints:
-		for keypoint in red_mask_keypoints:
-			current_red_keypoints.append(keypoint.pt)
+	current_corner_keypoints=[]
+	if corner_mask_keypoints:
+		for keypoint in corner_mask_keypoints:
+			current_corner_keypoints.append(keypoint.pt)
 			x, y = keypoint.pt
 		
-	if(len(current_red_keypoints)==4):
-		saved_red_keypoints=copy.deepcopy(current_red_keypoints)
+	if(len(current_corner_keypoints)==4):
+		saved_corner_keypoints=copy.deepcopy(current_corner_keypoints)
 		
-	if(len(saved_red_keypoints)==4):			
-		saved_red_keypoints[0]=(int(saved_red_keypoints[0][0]),int(saved_red_keypoints[0][1]))
-		saved_red_keypoints[1]=(int(saved_red_keypoints[1][0]),int(saved_red_keypoints[1][1]))
-		saved_red_keypoints[2]=(int(saved_red_keypoints[2][0]),int(saved_red_keypoints[2][1]))
-		saved_red_keypoints[3]=(int(saved_red_keypoints[3][0]),int(saved_red_keypoints[3][1]))
+	if(len(saved_corner_keypoints)==4):			
+		saved_corner_keypoints[0]=(int(saved_corner_keypoints[0][0]),int(saved_corner_keypoints[0][1]))
+		saved_corner_keypoints[1]=(int(saved_corner_keypoints[1][0]),int(saved_corner_keypoints[1][1]))
+		saved_corner_keypoints[2]=(int(saved_corner_keypoints[2][0]),int(saved_corner_keypoints[2][1]))
+		saved_corner_keypoints[3]=(int(saved_corner_keypoints[3][0]),int(saved_corner_keypoints[3][1]))
 
-		rectangle(saved_red_keypoints)
-
-
-
-		
+		rectangle(saved_corner_keypoints)
 
 		cv2.circle(img, bottom_right_point, 5, (100, 200, 200), -1)
 		cv2.circle(img, bottom_left_point, 5, (200, 100, 200), -1)
 		cv2.circle(img, top_right_point, 5, (200, 200, 100), -1)
 		cv2.circle(img, top_left_point, 5, (100, 100, 100), -1)
 
-
-
-#####################################
-
-
-	#read source image
-	#img=cv2.imread("lego.jpg")
-	#res, img = cap.read()
 
 	#convert sourece image to HSC color mode
 	hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -313,15 +301,14 @@ while(1):
 		# Sort the yellow bricks by their angle
 		sorted_bricks = sorted(keypoints, key=lambda kp: angle_dict[kp])
 
-		# Assign each brick to a quadrant based on its angle
-		left_legos = [bottom_left_point, top_left_point]
-		right_legos = [bottom_right_point, top_right_point]
-		top_legos = [top_left_point, top_right_point]
-		bottom_legos = [bottom_left_point, bottom_right_point]
-
 		# Calculate the position of the four corners of the yellow rectangle
 		try:
-			if(len(saved_red_keypoints)==4):
+			if(len(saved_corner_keypoints)==4):
+				# Assign each brick to a quadrant based on its angle
+				left_legos = [bottom_left_point, top_left_point]
+				right_legos = [bottom_right_point, top_right_point]
+				top_legos = [top_left_point, top_right_point]
+				bottom_legos = [bottom_left_point, bottom_right_point]
 				for kp in sorted_bricks:
 					if(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),top_left_point,top_right_point,8)):
 						top_legos.append((int(kp.pt[0]), int(kp.pt[1])))
@@ -331,25 +318,25 @@ while(1):
 						left_legos.append((int(kp.pt[0]), int(kp.pt[1])))
 					elif(is_point_on_line((int(kp.pt[0]), int(kp.pt[1])),top_right_point,bottom_right_point,5)):
 						right_legos.append((int(kp.pt[0]), int(kp.pt[1])))		
+
+				# Draw circles at the positions of each Lego brick in the picture
+				for kp in keypoints:
+					cv2.circle(img, (int(kp.pt[0]), int(kp.pt[1])), 5, (255, 255, 255), -1)
+
+				# Draw circles at the positions of each Lego brick in the picture separated by side
+				for position in left_legos:
+					cv2.circle(img, position, 3, (0, 0, 255), -1)  # left - red
+
+				for position in right_legos:
+					cv2.circle(img, position, 3, (255, 0, 0), -1)  # right - blue
+
+				for position in top_legos:
+					cv2.circle(img, position, 3, (255, 255, 0), -1)  # top - cyan
+
+				for position in bottom_legos:
+					cv2.circle(img, position, 3, (0, 255, 255), -1)  # bottom - yellow
 		except:
 			print("error")
-
-		# Draw circles at the positions of each Lego brick in the picture
-		for kp in keypoints:
-			cv2.circle(img, (int(kp.pt[0]), int(kp.pt[1])), 5, (255, 255, 255), -1)
-
-		# Draw circles at the positions of each Lego brick in the picture separated by side
-		for position in left_legos:
-			cv2.circle(img, position, 3, (0, 0, 255), -1)  # left - red
-
-		for position in right_legos:
-			cv2.circle(img, position, 3, (255, 0, 0), -1)  # right - blue
-
-		for position in top_legos:
-			cv2.circle(img, position, 3, (255, 255, 0), -1)  # top - cyan
-
-		for position in bottom_legos:
-			cv2.circle(img, position, 3, (0, 255, 255), -1)  # bottom - yellow
 
 
 
@@ -371,7 +358,7 @@ while(1):
 	if k == 27:
 		break
 	#//TODO
-	if(len(saved_red_keypoints)==4 and k>20):
+	if(len(saved_corner_keypoints)==4 and k>20):
 		try:
 			if(left_legos):
 				if(len(left_legos)==len(right_legos) and len(top_legos)==len(bottom_legos)):
@@ -394,7 +381,7 @@ left_legos=midpoints_calc(left_legos)
 
 while(1):
 	#res, img = cap.read()
-	img=cv2.imread("foto2.jpg")
+	img=cv2.imread(imgName)
 	for kp in keypoints:
 		cv2.circle(img, (int(kp.pt[0]), int(kp.pt[1])), 5, (255, 255, 255), -1)
 
@@ -455,10 +442,11 @@ while(1):
 				intersection_y = int(y1 + ua * (y2 - y1))
 				intersections.append((intersection_x, intersection_y))
 
+
+
 	
 
 	colorfinderarr=[[0]*len(left_legos) for i in range(len(top_legos))]
-	# Draw circles at the intersection points
 
 	counteri=0
 	for rangex in range(0,len(left_legos)):
@@ -466,13 +454,71 @@ while(1):
 			colorfinderarr[rangey][rangex]=intersections[counteri]
 			counteri+=1
 
-	#cv2.circle(img, colorfinderarr[2][2], 12, (0, 0, 255), -1)
+
+
+
+	imgColors=cv2.imread("lego_colors.png")
+	
+	# Convert the image to HSV color space
+	hsv = cv2.cvtColor(imgColors, cv2.COLOR_BGR2HSV)
+
+# //TODO 
+
+	# Loop through each intersection point
+	for intersection in intersections:
+		x, y = intersection
+
+		# Get the HSV values of the pixel at the intersection point
+		pixel = hsv[y, x]
+		h, s, v = pixel
+
+		# Check the color of the Lego brick based on its hue value
+		if h >= 0 and h <= 10 or h >= 350 and h <= 360:
+			color = "red"
+			code = (0, 0, 255)
+		elif h >= 11 and h <= 30:
+			color = "orange"
+			code = (0, 165, 255)
+		elif h >= 31 and h <= 60:
+			color = "yellow"
+			code = (255, 255, 0)
+		elif h >= 61 and h <= 150:
+			color = "green"
+			code = (0, 255, 0)
+		elif h >= 151 and h <= 210:
+			color = "cyan"
+			code = (0, 255, 255)
+		elif h >= 211 and h <= 270:
+			color = "blue"
+			code = (255, 0, 0)
+		elif h >= 271 and h <= 330:
+			color = "purple"
+			code = (255, 0, 255)
+		else:
+			color = "pink"
+			code = (255, 153, 153)
+
+
+		# color and position of the Lego brick
+
+		#print("Color:", color, "Position:", x, y)
+		cv2.circle(imgColors, (x, y), 4, code, -1)
+
+		cv2.imshow('imgColors', imgColors)
+
+
+
+
 
 
 	# Draw circles at the intersection points
-	# for intersection in intersections:
+	#for intersection in intersections:
 	# 	cv2.circle(img, intersection, 5, (0, 0, 255), -1)
 	# 	print (intersection)
+
+
+
+
 
 
 	# resize image & show result
