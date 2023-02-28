@@ -121,7 +121,8 @@ while(1):
 	# importing time module
 
 	#read source image
-	#img=cv2.imread("lego.jpg")
+	img=cv2.imread("lego.jpg")
+	img_green=img
 	res, img = cap.read()
 
 	# Convert the image to HSV color space
@@ -224,7 +225,7 @@ while(1):
 	#res, img = cap.read()
 
 	#convert sourece image to HSC color mode
-	hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+	hsv = cv2.cvtColor(img_green, cv2.COLOR_BGR2HSV)
 
 	#Remove to use trackbar !!!
 	H_low = 21 #Default: 0 #Better: 21
