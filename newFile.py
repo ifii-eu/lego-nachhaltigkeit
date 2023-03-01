@@ -10,7 +10,6 @@ pixel=27
 xachse=500
 yachse=50
 
-
 #Variables
 
 lego_orange=cv2.imread("Lego/Lego_Orange.png")
@@ -34,13 +33,11 @@ lego_red=cv2.resize(lego_red,(pixel,pixel))
 
 
 window=True
-back = cv2.imread("backgroundjuice.png")
+back = cv2.imread("background.png")
 
-machinepos=[]
+
 display = [[0]*platey for i in range(platex)]
 machine = [[0]*platey for i in range(platex)]
-board= [[0]*platey for i in range(platex)]
-machines=[]
 block = machine.copy()
 n=0
 
@@ -55,11 +52,15 @@ n=0
 for x in range(6):
     for y in range(4):
         display[x+2][y+4]="grey"
+display[6][5]="red"
+display[6][4]="red"
+display[7][5]="red"
+display[7][4]="red"
 
-
-
-display[1][0]="red"
 display[2][0]="red"
+display[3][0]="red"
+display[2][33]="red"
+display[3][33]="red"
 
 for x in range(platex):
     for y in range(platey):
@@ -80,7 +81,7 @@ def checkcluster(x, y, cluster, block):
             cluster = checkcluster(x+dx, y+dy, cluster, block)
     return cluster
 
-def checkcolorin(color, nr):
+def checkcolor(color, nr):
     checked=copy.deepcopy(color)
 
     for x in range(1,len(color)-1):
@@ -90,71 +91,67 @@ def checkcolorin(color, nr):
                     print("4")
                     if(checked[x-1][y]==0):
                         color[x-1][y]=color[x][y]+"_in" 
+                        print("Yea1")
                     if(checked[x-1][y+1]==0):   
                         color[x-1][y+1]=color[x][y]+"_in" 
+                        print("Yea2")
                     if(checked[x+2][y]==0):
                         color[x+2][y]=color[x][y]+"_in" 
+                        print("Yea3")
                     if(checked[x+2][y+1]==0):   
                         color[x+2][y+1]=color[x][y]+"_in" 
+                        print("Yea4")
                     if(checked[x][y-1]==0):
                         color[x][y-1]=color[x][y]+"_in" 
+                        print("Yea5:"+color[x][y]+"_in")
                     if(checked[x+1][y-1]==0):
                         color[x+1][y-1]=color[x][y]+"_in" 
+                        print("Yea6")
                     if(checked[x][y+2]==0):
                         color[x][y+2]=color[x][y]+"_in" 
+                        print("Yea7")
                     if(checked[x+1][y+2]==0):
-                        color[x+1][y+2]=color[x][y]+"_in"
-
+                        color[x+1][y+2]=color[x][y]+"_in" 
+                        print("Yea8")
                     checked[x][y+1]=0
                     checked[x+1][y]=0
                     checked[x+1][y+1]=0
-###Als letztes 
 
-def checkcolorout(color, nr):
-    checked=copy.deepcopy(color)
-
-    for x in range(1,len(color)-1):
-        for y in range(1,len(color[x])-1):
-            if(checked[x][y]!=0 and checked[x][y]!="grey"):
-                if(checked[x][y]==checked[x][y+1]):
-                    if(checked[x-1][y]==0):
-                        color[x-1][y]=color[x][y]+"_in" 
-                    if(checked[x+1][y]==0):   
-                        color[x+1][y]=color[x][y]+"_in"
-                    if(checked[x][y-1]==0):
-                        color[x][y-1]=color[x][y]+"_in"
-                    if(checked[x][y+2]==0):
-                        color[x][y+2]=color[x][y]+"_in"
-                        
-
-                    if(checked[x+1][y+1]==0):
-                        color[x+1][y+1]=color[x][y]+"_in"
-                    if(checked[x-1][y+1]==0):
-                        color[x-1][y+1]=color[x][y]+"_in"
-
-                    checked[x][y]=0
+                elif(checked[x][y]==checked[x][y+1]):
+                    print("2")
                     checked[x][y+1]=0
-
                 elif(checked[x][y]==checked[x+1][y]):
-                    if(checked[x][y-1]==0):
-                        color[x][y-1]=color[x][y]+"_in" 
-                    if(checked[x][y+1]==0):   
-                        color[x][y+1]=color[x][y]+"_in"
-                    if(checked[x-1][y]==0):
-                        color[x-1][y]=color[x][y]+"_in"
-                    if(checked[x+2][y]==0):
-                        color[x+2][y]=color[x][y]+"_in"
-
-                    if(checked[x+1][y+1]==0):
-                        color[x+1][y+1]=color[x][y]+"_in"
-                    if(checked[x+1][y-1]==0):
-                        color[x+1][y-1]=color[x][y]+"_in"
-
+                    print("2+")
                     checked[x+1][y]=0
-                    checked[x][y]=0
                 checked[x][y]=0
     return color
 
+    
+
+#lange version
+# def checkcluster(x, y, cluster, block):
+#     if block[x][y] == 0:
+#         return cluster
+#     cluster.append((x, y))
+#     block[x][y] = 0
+#     global minx, maxx, miny, maxy
+#     if(minx>x):
+#         minx=x
+#     if(maxx<x):
+#         maxx=x
+#     if(miny>y):
+#         miny=y
+#     if(maxy<y):
+#         maxy=y
+#     if x > 0:
+#         cluster = checkcluster(x-1, y, cluster, block)
+#     if x < len(block)-1:
+#         cluster = checkcluster(x+1, y, cluster, block)
+#     if y > 0:
+#         cluster = checkcluster(x, y-1, cluster, block)
+#     if y < len(block[0])-1:
+#         cluster = checkcluster(x, y+1, cluster, block)
+#     return cluster
 
 
 for x in range(platex):
@@ -168,46 +165,28 @@ for x in range(platex):
             cluster=checkcluster(x,y,cluster, block)
             diffx=(maxx-minx)+1
             diffy=(maxy-miny)+1
-            machinepos.append((x-1,y-1))
-
-
             globals()['machines%s' % n]=[[0]*(diffy+2) for i in range(diffx+2)]
             for i in range(len(cluster)):
-
                 if(cluster[i][0]==0):
                     globals()['machines%s' % n][cluster[i][0]-minx][cluster[i][1]+1-miny]="b"
-                elif(cluster[i][1]==0):
+                if(cluster[i][1]==0):
                     globals()['machines%s' % n][cluster[i][0]+1-minx][cluster[i][1]-miny]="b"
-                elif(cluster[i][0]==platex):
+                if(cluster[i][0]==len(cluster)):
                     globals()['machines%s' % n][cluster[i][0]+2-minx][cluster[i][1]+1-miny]="b"
-                elif(cluster[i][1]==platey):
+                if(cluster[i][1]==len(cluster)):
                     globals()['machines%s' % n][cluster[i][0]+1-minx][cluster[i][1]+2-miny]="b"
-                
                 globals()['machines%s' % n][cluster[i][0]+1-minx][cluster[i][1]+1-miny]=display[cluster[i][0]][cluster[i][1]]  
-                print(globals()['machines%s' % n], n)
-                checkcolorout(globals()['machines%s' % n], n)
+            print(checkcolor(globals()['machines%s' % n], n))
             n+=1
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-for ncount in range(0,len(machinepos)):
-    for x in range(len(globals()['machines%s' % ncount])):
-         for y in range(len(globals()['machines%s' % ncount][0])):
-
-            xcor=machinepos[ncount][0]+x
-            ycor=machinepos[ncount][1]+y
-            board[xcor][ycor]=globals()['machines%s' % ncount][x][y]
-
-
-    
-            
-        
+#print(cluster)
+#print(machines1)
+#print(display)
 
 
 x, y = pixel, pixel
 h, w = lego_orange.shape[:2]
 
-display=board
 while window:
     img=back
     for x in range(platex):
